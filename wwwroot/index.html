@@ -1,0 +1,74 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mahjong Rush</title>
+<style>
+:root{--bg:#0f3d2e;--gold:#f5b93a;--coral:#ff7043;--jade:#1e8e6a;--ink:#f1efdc}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:"Fredoka","Baloo 2",system-ui,sans-serif;overflow:hidden;touch-action:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;z-index:0}
+.hud{position:fixed;z-index:10;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 8px) 12px 0;display:flex;gap:8px;justify-content:space-between;pointer-events:none}
+.hud>*{pointer-events:auto}
+.pill{background:#0009;border-radius:999px;padding:0 10px;height:38px;font-weight:700;font-size:14px;display:flex;align-items:center;white-space:nowrap}
+#secs{position:fixed;z-index:10;left:12px;top:calc(env(safe-area-inset-top) + 52px);background:#0009;border-radius:999px;padding:0 14px;height:32px;display:flex;align-items:center;font-weight:700;font-size:14px;pointer-events:none}
+#secs:empty{display:none}
+#zoom{position:fixed;z-index:10;right:10px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px}
+#zoom button{width:50px;min-width:50px;height:50px;border-radius:14px;padding:0;background:#0009;box-shadow:none;font-size:20px}
+#toast{position:fixed;z-index:12;top:calc(env(safe-area-inset-top) + 92px);left:50%;transform:translateX(-50%);background:#000a;border-radius:999px;padding:6px 16px;font-size:14px;opacity:0;transition:.3s;pointer-events:none;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}
+.bar button{height:62px;min-width:66px;font-size:22px;border-radius:20px}
+.glabel{grid-column:1/-1;text-align:left;font-size:13px;color:var(--gold);padding:6px 2px 0}
+.bar{gap:12px!important;position:fixed;z-index:10;left:0;right:0;bottom:0;padding:8px 12px calc(env(safe-area-inset-bottom) + 12px);display:flex;gap:10px;justify-content:center}
+button{font:inherit;font-weight:700;border:0;color:#fff;background:var(--coral);border-radius:18px;min-width:56px;height:56px;padding:0 18px;font-size:18px;box-shadow:0 4px 0 #0006;cursor:pointer;touch-action:manipulation}
+button:active{transform:translateY(2px);box-shadow:0 2px 0 #0006}
+button[hidden]{display:none}
+.sec{background:var(--jade)}
+.ov{position:fixed;inset:0;z-index:20;background:radial-gradient(circle at 50% 30%,#0f4a38ee,#04120cf5);display:none;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px);text-align:center}
+.ov.on{display:flex}
+#win{z-index:30;flex-direction:column;gap:12px;background:#000c}
+.page{display:none;flex-direction:column;align-items:center;gap:12px;width:min(420px,100%);max-height:100%;overflow:auto;touch-action:pan-y}
+.page.on{display:flex}
+.page button{width:100%}
+h1{margin:0;font-size:34px;color:var(--gold);letter-spacing:1px}
+h2{margin:0;font-size:24px;color:var(--gold)}
+.sub{opacity:.75;font-size:14px;margin-top:-6px}
+.row{display:flex;gap:8px;width:100%}.row button{flex:1;padding:0 6px}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;max-height:58vh;overflow:auto;width:100%;touch-action:pan-y}
+#grid button{height:56px;border-radius:14px;font-size:15px;background:var(--jade);padding:0;min-width:0;white-space:pre-line;line-height:1.1}
+#grid button.lock{background:#444;opacity:.55}
+.how{text-align:left;font-size:15px;line-height:1.45;background:#0006;border-radius:16px;padding:14px 16px}
+.how b{color:var(--gold)}
+body:not([data-route=game]) .hud,body:not([data-route=game]) .bar,body:not([data-route=game]) #zoom,body:not([data-route=game]) #secs{display:none}
+</style></head><body data-route="home">
+<div class="hud"><button id="bMenu" aria-label="Menu" style="height:36px;min-width:44px;width:44px;padding:0;border-radius:12px;font-size:16px">☰</button>
+<div class="pill" id="lv">Level 1</div><div class="pill" id="left">0</div><div class="pill" id="mv">Moves</div><div class="pill" id="sc">0</div></div>
+<div id="zoom"><button id="bSnd" aria-label="Sound">🔊</button><button id="bCam" aria-label="Change camera view">🎥</button><button id="bZin" aria-label="Zoom in">＋</button><button id="bZout" aria-label="Zoom out">－</button><button id="bZr" aria-label="Reset view">⟲</button></div>
+<div id="secs"></div><div id="toast"></div>
+<div class="bar"><button id="bBomb" aria-label="Bomb">💣1</button><button id="bHint" aria-label="Hint">💡</button><button id="bShuf" aria-label="Shuffle">🔀</button><button id="bUndo" aria-label="Undo">↩</button></div>
+
+<div class="ov on" id="menu">
+  <section class="page on" data-page="home">
+    <h1>🀄 Mahjong Rush</h1><div class="sub" id="hSt">★ 0 collected</div>
+    <button id="bClose" hidden>⏯ Resume game</button>
+    <button id="bPlay">▶ Continue</button>
+    <button class="sec" id="bQuick">⚡ Quick play (single player)</button>
+    <button class="sec" data-go="levels">Levels</button>
+    <button class="sec" data-go="versus">🤖 Play vs Computer</button>
+    <button class="sec" id="bDaily">📅 Daily puzzle</button>
+    <div class="row"><button class="sec" data-go="settings">⚙ Settings</button><button class="sec" data-go="howto">? How to play</button></div>
+  </section>
+  <section class="page" data-page="levels"><h2>Levels</h2><div id="grid"></div><button class="sec" data-go="home">← Back</button></section>
+  <section class="page" data-page="versus"><h2>Versus Computer</h2><div class="sub">Take turns on the same board — higher score wins. A wrong match loses your turn.</div>
+    <button id="vsE">🤖 Easy</button><button id="vsN">🤖 Normal</button><button id="vsH">🤖 Hard</button><button class="sec" data-go="home">← Back</button></section>
+  <section class="page" data-page="settings"><h2>Settings</h2>
+    <button class="sec" id="sSnd">Sound effects: ON</button><button class="sec" id="sMus">Music: ON</button><button class="sec" id="sVib">Vibration: ON</button><button class="sec" id="sQ">Graphics: High</button>
+    <button id="sRes" style="background:#8a3b30">Reset progress</button><button class="sec" data-go="home">← Back</button></section>
+  <section class="page" data-page="howto"><h2>How to play</h2>
+    <div class="how"><b>Match</b> two identical tiles (any flower with any flower, any season with any season) to remove them — a hand lifts both away.<br><br>
+    <b>Free tiles:</b> nothing on top, and the left <i>or</i> right side open. Grey tiles are blocked.<br><br>
+    <b>Twists:</b> ★ gold tiles give bonus points · ❄ blue tiles are frozen until you match tiles beside them · a wrong match costs moves · x4 combos and cleared layers earn 💣 bombs.<br><br>
+    <b>Controls:</b> tap a tile to select · 🎥 changes the fixed camera view (no free rotation) · pinch or ＋－ = zoom · drag = move the board · 💡 hint · 🔀 shuffle · ↩ undo. 300 levels in 6 packs, plus Quick play and vs Computer.</div>
+    <button class="sec" data-go="home">← Back</button></section>
+</div>
+
+<div class="ov" id="win"><h1 id="wt">Cleared!</h1><div id="ws"></div><button id="bNext" style="width:min(320px,100%)">Next level ▶</button><button class="sec" data-go="home" style="width:min(320px,100%)">Menu</button></div>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.172.0/build/three.webgpu.js","three/webgpu":"https://cdn.jsdelivr.net/npm/three@0.172.0/build/three.webgpu.js"}}</script>
+<script type="module" src="game.js"></script></body></html>
