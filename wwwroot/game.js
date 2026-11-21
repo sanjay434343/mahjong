@@ -204,6 +204,22 @@ function handStep(who, dt) {
   if (!j.w) { j.w = 1; sfx('whoosh'); } if (p >= .3) { if (!j.g1) { j.g1 = 1; sfx('sel'); } put(A, -.6); } if (p >= .6) { if (!j.g2) { j.g2 = 1; sfx('sel'); } put(B, .6); } if (p >= 1 && !j.pl) { j.pl = 1; sfx('place'); }
   h.g.rotation.z = Math.sin(s * Math.PI) * -.08 * dir;
 }
+// ---------- GLOW: bright pulsing ring + fill + bouncing arrow on hinted tiles, cyan ring on the selected tile ----------
+const glowM = c => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+const ringShape = rr(W + .06, H + .06, .24); ringShape.holes.push(new THREE.Path(rr(W - .22, H - .22, .1).getPoints(16)));
+const ringGeo = new THREE.ShapeGeometry(ringShape, 16).rotateX(-Math.PI / 2), fillGeo = new THREE.ShapeGeometry(rr(W - .04, H - .04, .2), 16).rotateX(-Math.PI / 2), arrowGeo = new THREE.ConeGeometry(.3, .65, 20).rotateX(Math.PI);
+const glows = Array.from({ length: 4 }, () => { const g = new THREE.Group(), m1 = glowM(0xffd54a), m2 = glowM(0xffd54a), m3 = glowM(0xffd54a), a = new THREE.Mesh(arrowGeo, m3); g.add(new THREE.Mesh(ringGeo, m1), new THREE.Mesh(fillGeo, m2), a); g.visible = false; scene.add(g); return { g, m1, m2, m3, a }; });
+function glowFx(now) {
+  const list = [];
+  if (S) { if (S.sel && S.sel.alive) list.push([S.sel, 0x6fe9ff, 0]); if (hintT > now && S.hint) for (const q of S.hint) if (q.alive) list.push([q, 0xffd54a, 1]); }
+  const pulse = .55 + .45 * Math.sin(now / 130);
+  glows.forEach((o, i) => {
+    const e = list[i]; o.g.visible = !!e; if (!e) return; const [q, col, arrow] = e, m = q.mesh;
+    o.g.position.set(m.position.x, m.position.y + DP / 2 + .03, m.position.z);
+    [o.m1, o.m2, o.m3].forEach(x => x.color.setHex(col)); o.m1.opacity = .6 + .4 * pulse; o.m2.opacity = .15 + .3 * pulse; o.a.visible = !!arrow; o.a.position.y = .85 + .25 * Math.sin(now / 160);
+    q.top.emissive.setHex(col); q.top.emissiveIntensity = .2 + .45 * pulse;
+  });
+}
 // ---------- game state ----------
 let S = null, anims = [], hintT = 0, cx = 0, cz = 0;
 const prog = JSON.parse(localStorage.getItem('mj') || '{"u":1,"s":{}}'), save = () => localStorage.setItem('mj', JSON.stringify(prog));
@@ -304,7 +320,7 @@ function hint() {
   if (!live()) return; if (S.mode === 'vs') return toast('Not available in versus'); if (S.moves <= HINT + 1) return toast('Not enough moves for a hint');
   let p = S.ord.find(([a, b]) => a.alive && b.alive && playable(a) && playable(b)); if (!p) { const m = moves()[0]; if (m) p = [m[0], m[1]]; }
   if (!p) return toast('No moves – Shuffle or Undo!');
-  S.aid++; S.hint = p; hintT = performance.now() + 1500; sfx('sel'); toast(`Hint: -${HINT} moves`); lose(HINT); refresh(); setTimeout(refresh, 1600);
+  S.aid++; S.hint = p; hintT = performance.now() + 3200; sfx('sel'); toast(`Hint: -${HINT} moves`); lose(HINT); refresh(); setTimeout(refresh, 3300);
 }
 function reshuffle() {   // reshuffles every remaining tile, always solvable
   const al = alive(), cnt = {}; al.forEach(q => { const g = grp(q.f); cnt[g] = (cnt[g] || 0) + 1; });
@@ -417,6 +433,6 @@ r.setAnimationLoop(() => {
   }
   pitch += (tp - pitch) * .12; yaw += (ty - yaw) * .12; const dd = dist * zoom; cam.position.set(panX + Math.sin(yaw) * Math.cos(pitch) * dd, camY + Math.sin(pitch) * dd, panZ + Math.cos(yaw) * Math.cos(pitch) * dd); cam.lookAt(panX, camY, panZ);
   anims = anims.filter(a => { const p = (now - a.t) / 180; a.m.rotation.z = Math.sin(p * 18) * .12 * (1 - p); if (p >= 1) { a.m.rotation.z = 0; return false; } return true; });
-  r.render(scene, cam);
+  glowFx(now); r.render(scene, cam);
 });
 route();
